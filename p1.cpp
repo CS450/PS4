@@ -16,7 +16,7 @@ struct address_data{
 
 void print_struct(address_data data);
 void input_file_data(char * filename);
-vector<int> create_binary_vector(int data);
+vector<int> create_binary_vector(int data, int address_type);
 
 int main(int argc, char **argv){
 	input_file_data(argv[1]);
@@ -25,20 +25,34 @@ int main(int argc, char **argv){
 	//cout << "the size of the page table = " << input_data.page_table.size() << endl;
 	int pages = input_data.page_table.size();
 	int pagenum;
-//	int temp = input_data.address_info[0];
+	//	int temp = input_data.address_info[0];
 	//const size_t v_address_size = const_cast<const int(temp);
-//	int v_address_size = input_data.address_info[0];
+	//	int v_address_size = input_data.address_info[0];
 
 	string keepgoing = "c";
 	while(keepgoing == "c" || keepgoing == "C"){
 		cout << "Please enter a virtual address in hex: ";
 		cin >> hex >> virtual_address;
-		vector<int> vaddress = create_binary_vector(virtual_address);
+		cout << "virtual_address = " << virtual_address << endl;
+		vector<int> vaddress = create_binary_vector(virtual_address, 0);
+	
+		for(const auto i: vaddress){
+			cout << i;
+		}
+	
+		cout << endl;
 		for(int i = 0; i < log2(pages); i++){
 			pagenum += exp2(vaddress[log2(pages)-i]);
 		}
+		cout << "log2(pages) = " << log2(pages) << endl;
 		//now we can lookup the ppn in the page table and create the physical address.
-		vector<int> paddress = create_binary_vector(input_data.page_table[pagenum][2]);
+		vector<int> paddress = create_binary_vector(input_data.page_table[pagenum][2], 1);
+		cout << "physical address: ";
+		for(const auto i: paddress){
+			cout << i;
+		}
+		cout << endl;
+		//vector<int> paddress;
 		paddress.insert(paddress.end(), vaddress.begin()+ pagenum,  vaddress.end());
 		//fill(v.end()-i, v.end()-i, (data % 2));
 		cout << "physical address: ";
@@ -107,22 +121,43 @@ void input_file_data(char * filename){
 	input.close();
 }
 
-vector<int> create_binary_vector(int data){
-		std::vector<int> v (input_data.address_info[0]);
-		int i = 0;
+vector<int> create_binary_vector(int data, int address_type){
+	vector<int> v; 
+
+	if(address_type == 0){
+		//std::vector<int> v (input_data.address_info[0]);
+		v.resize(input_data.address_info[0]);
+		int i = 1;
 		while(data > 0){
-			fill(v.end()-i, v.end()-i, (data % 2));//add a try catch block?
+			//fill(v.end()-i, v.end()-i, (data % 2));//add a try catch block?
+			fill_n(v.end()-i, 1, (data % 2));//add a try catch block?
 			i++;
 			data /= 2;
 			//v.push_back(data%2);
 		}
-		/*
-		if(v.size() < input_data.address_info[0]){
-			//this means that our read in hex value is not the same bit length
-			//as the virtual address length. so we pad with 0s to match
-			int difference = input_data.address_info[0] - v.size();
-			fill(v.begin(), v.begin() + difference, 0);
+	}
+	else if(address_type == 1){
+		//v.resize(3);
+		//std::vector<int> v (input_data.address_info[1]);
+		//v.resize(input_data.address_info[1]);
+		int i = 1;
+		while(data > 0){
+			//fill(v.end()-i, v.end()-i, (data % 2));//add a try catch block?
+			//fill_n(v.end()-i, 1, (data % 2));//add a try catch block?
+			//v.push_back(data % 2);
+			v.insert(v.begin(), (data%2));
+			i++;
+			data /= 2;
+			//v.push_back(data%2);
 		}
-		*/
-		return v;
+	}
+	/*
+	   if(v.size() < input_data.address_info[0]){
+//this means that our read in hex value is not the same bit length
+//as the virtual address length. so we pad with 0s to match
+int difference = input_data.address_info[0] - v.size();
+fill(v.begin(), v.begin() + difference, 0);
+}
+*/
+return v;
 }
