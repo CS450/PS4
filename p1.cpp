@@ -22,12 +22,8 @@ int main(int argc, char **argv){
 	input_file_data(argv[1]);
 	int virtual_address;
 	std::vector<int> physical_address;
-	//cout << "the size of the page table = " << input_data.page_table.size() << endl;
 	int pages = input_data.page_table.size();
 	int pagenum;
-	//	int temp = input_data.address_info[0];
-	//const size_t v_address_size = const_cast<const int(temp);
-	//	int v_address_size = input_data.address_info[0];
 
 	string keepgoing = "c";
 	while(keepgoing == "c" || keepgoing == "C"){
@@ -35,38 +31,61 @@ int main(int argc, char **argv){
 		cin >> hex >> virtual_address;
 		cout << "virtual_address = " << virtual_address << endl;
 		vector<int> vaddress = create_binary_vector(virtual_address, 0);
-	
+
 		for(const auto i: vaddress){
 			cout << i;
 		}
-	
+
 		cout << endl;
 		for(int i = 0; i < log2(pages); i++){
-			pagenum += exp2(vaddress[log2(pages)-i]);
+			if(vaddress[log2(pages)-(i+1)] == 1){
+				pagenum += exp2(i);
+			}
 		}
+		cout << "pagenum = " << pagenum << endl;
 		cout << "log2(pages) = " << log2(pages) << endl;
 		//now we can lookup the ppn in the page table and create the physical address.
-		vector<int> paddress = create_binary_vector(input_data.page_table[pagenum][2], 1);
-		cout << "physical address: ";
-		for(const auto i: paddress){
-			cout << i;
+
+		//check permission bit:
+		if(input_data.page_table[pagenum][1] == 0){
+			cout << "SEGFAULT\n\n";
 		}
-		cout << endl;
-		//vector<int> paddress;
-		paddress.insert(paddress.end(), vaddress.begin()+ pagenum,  vaddress.end());
-		//fill(v.end()-i, v.end()-i, (data % 2));
-		cout << "physical address: ";
-		for(const auto i: paddress){
-			cout << i;
+		//at this point we know permission bit is 1, so now we check if valid = 0 and permission = 1
+		//if this is the case, print DISK for problem 1 or utilize the clock replacement alg. for
+		//problem 2
+		else if(input_data.page_table[pagenum][0] == 0){
+			#ifdef PROB1
+				cout << "DISK\n";
+			#else
+				//do number 2
+			#endif
 		}
-		//bitset<8> vaddress(virtual_address);
+		else{//valid and permission bits both set so we good to calculate physical address
+			vector<int> paddress = create_binary_vector(input_data.page_table[pagenum][2], 1);
+			cout << "physical address with just ppn: ";
+			for(const auto i: paddress){
+				cout << i;
+			}
+			cout << endl;
+			paddress.insert(paddress.end(), vaddress.begin()+ log2(pages),  vaddress.end());
+			if(paddress.size() < input_data.address_info[1]){
+				int smallpaddress = paddress.size();
+				for(int i = 0; i < (input_data.address_info[1]-smallpaddress); i++){
+					paddress.insert(paddress.begin(), 0);
+				}
+			}
+			cout << "physical address with added offset: ";
+			for(const auto i: paddress){
+				cout << i;//TODO: convert to hex per assignment instructions
+			}
+
+		}
+
 
 		cout << "\n\n" << "type 'q' to exit or 'c' to enter another virtual address in hex: ";
 		cin >> keepgoing;
+		pagenum = 0;
 	}
-
-	//converting the above decimal value to a binary stored in int vector.
-
 
 	//just testing that file input was stored correctly here.
 	//print_struct(input_data);
@@ -125,39 +144,21 @@ vector<int> create_binary_vector(int data, int address_type){
 	vector<int> v; 
 
 	if(address_type == 0){
-		//std::vector<int> v (input_data.address_info[0]);
 		v.resize(input_data.address_info[0]);
 		int i = 1;
 		while(data > 0){
-			//fill(v.end()-i, v.end()-i, (data % 2));//add a try catch block?
 			fill_n(v.end()-i, 1, (data % 2));//add a try catch block?
 			i++;
 			data /= 2;
-			//v.push_back(data%2);
 		}
 	}
 	else if(address_type == 1){
-		//v.resize(3);
-		//std::vector<int> v (input_data.address_info[1]);
-		//v.resize(input_data.address_info[1]);
 		int i = 1;
 		while(data > 0){
-			//fill(v.end()-i, v.end()-i, (data % 2));//add a try catch block?
-			//fill_n(v.end()-i, 1, (data % 2));//add a try catch block?
-			//v.push_back(data % 2);
 			v.insert(v.begin(), (data%2));
 			i++;
 			data /= 2;
-			//v.push_back(data%2);
 		}
 	}
-	/*
-	   if(v.size() < input_data.address_info[0]){
-//this means that our read in hex value is not the same bit length
-//as the virtual address length. so we pad with 0s to match
-int difference = input_data.address_info[0] - v.size();
-fill(v.begin(), v.begin() + difference, 0);
-}
-*/
-return v;
+	return v;
 }
