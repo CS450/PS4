@@ -12,14 +12,25 @@ using namespace std;
 struct address_data{
 	vector<int> address_info;
 	vector<vector<int>> page_table;
+	vector<vector<int>> clock_table;
+	int clock_pointer;
+
 } input_data;
 
 void print_struct(address_data data);
 void input_file_data(char * filename);
 vector<int> create_binary_vector(int data, int address_type);
-
+int binaryVect_to_decimal(vector<int> v);
+void clock_replacement(int virtual_page_to_replace);
+void print_physical_address(int pagenum, int pages, vector<int> vaddress);
+							
 int main(int argc, char **argv){
+	if(argc < 2){
+		cout << "You need to specify the input file formatted as: [executable] [filename]\n";
+		exit(EXIT_FAILURE);									
+	}
 	input_file_data(argv[1]);
+	print_struct(input_data);//just testing to make sure my clock table was init
 	int virtual_address;
 	std::vector<int> physical_address;
 	int pages = input_data.page_table.size();
@@ -29,6 +40,7 @@ int main(int argc, char **argv){
 	while(keepgoing == "c" || keepgoing == "C"){
 		cout << "Please enter a virtual address in hex: ";
 		cin >> hex >> virtual_address;
+		//TODO: make sure this is a valid hex. 
 		cout << "virtual_address = " << virtual_address << endl;
 		vector<int> vaddress = create_binary_vector(virtual_address, 0);
 
@@ -42,6 +54,7 @@ int main(int argc, char **argv){
 				pagenum += exp2(i);
 			}
 		}
+
 		cout << "pagenum = " << pagenum << endl;
 		cout << "log2(pages) = " << log2(pages) << endl;
 		//now we can lookup the ppn in the page table and create the physical address.
@@ -55,29 +68,17 @@ int main(int argc, char **argv){
 		//problem 2
 		else if(input_data.page_table[pagenum][0] == 0){
 			#ifdef PROB1
-				cout << "DISK\n";
+			cout << "DISK\n";
 			#else
-				//do number 2
+			cout << "PAGE FAULT\n";
+			clock_replacement(pagenum);
+			print_physical_address(pagenum, pages, vaddress);
+			print_struct(input_data);//just testing to make sure my clock table was init
+
 			#endif
 		}
 		else{//valid and permission bits both set so we good to calculate physical address
-			vector<int> paddress = create_binary_vector(input_data.page_table[pagenum][2], 1);
-			cout << "physical address with just ppn: ";
-			for(const auto i: paddress){
-				cout << i;
-			}
-			cout << endl;
-			paddress.insert(paddress.end(), vaddress.begin()+ log2(pages),  vaddress.end());
-			if(paddress.size() < input_data.address_info[1]){
-				int smallpaddress = paddress.size();
-				for(int i = 0; i < (input_data.address_info[1]-smallpaddress); i++){
-					paddress.insert(paddress.begin(), 0);
-				}
-			}
-			cout << "physical address with added offset: ";
-			for(const auto i: paddress){
-				cout << i;//TODO: convert to hex per assignment instructions
-			}
+			print_physical_address(pagenum, pages, vaddress);
 
 		}
 
@@ -93,14 +94,50 @@ int main(int argc, char **argv){
 	return 0;
 }
 
+void print_physical_address(int pagenum, int pages, vector<int> vaddress){
+	vector<int> paddress = create_binary_vector(input_data.page_table[pagenum][2], 1);
+	cout << "physical address with just ppn: ";
+	for(const auto i: paddress){
+		cout << i;
+	}
+	cout << endl;
+	paddress.insert(paddress.end(), vaddress.begin()+ log2(pages),  vaddress.end());
+	if(paddress.size() < input_data.address_info[1]){
+		int smallpaddress = paddress.size();
+		for(int i = 0; i < (input_data.address_info[1]-smallpaddress); i++){
+			paddress.insert(paddress.begin(), 0);
+		}
+	}
+	cout << "physical address with added offset in hex: ";
+
+	cout << hex << binaryVect_to_decimal(paddress) << endl << "and now in binary: ";
+
+	for(const auto i: paddress){
+		cout << i;
+	}
+
+}
+
 void print_struct(address_data data){
+	cout << "Address info\n";
 	for(auto i = data.address_info.begin(); i != data.address_info.end();
 			++i){
 		cout << *i << " ";
 	}
-	cout << endl;
+	cout << "\n\n";
 
+	cout << "Page table\n";
 	for(const auto i: data.page_table){
+		for(const auto j: i){
+			cout << j << " ";
+
+		}
+		cout << endl;
+	}
+
+
+	cout << "\n\nClock table\n";
+	for(const auto i: data.clock_table){
 		for(const auto j: i){
 			cout << j << " ";
 
@@ -133,6 +170,20 @@ void input_file_data(char * filename){
 				input_data.page_table.push_back(line_buffer);
 			}
 		}
+
+		//setup clock_pointer and table
+		input_data.clock_pointer = 0;
+
+
+		for(int i = 0; i < input_data.page_table.size(); i++){
+			if(input_data.page_table[i][2] > 0){//ppn exists here so throw it in the clock table with the current i
+				vector<int> page_data;
+				page_data.push_back(input_data.page_table[i][3]);
+				page_data.push_back(input_data.page_table[i][2]);
+				page_data.push_back(i);
+				input_data.clock_table.push_back(page_data);
+			}
+		}
 	}
 	else{
 		cout << "Error opening " << filename << endl;
@@ -161,4 +212,50 @@ vector<int> create_binary_vector(int data, int address_type){
 		}
 	}
 	return v;
+}
+
+int binaryVect_to_decimal(vector<int> v){
+	int decimal_value;
+	for(int i = 0; i < v.size(); i++){
+		if(v[v.size()-(i+1)] == 1){
+			decimal_value += exp2(i);
+		}
+	}
+	return decimal_value;
+}
+
+void clock_replacement(int virtual_page_to_replace){
+
+	while(input_data.clock_table[input_data.clock_pointer][3] == 1){
+
+		input_data.page_table[input_data.clock_pointer][3] == 0;
+		input_data.clock_pointer++;
+
+		if(input_data.clock_pointer > input_data.clock_table.size()){
+			input_data.clock_pointer = 0;
+		}
+	}						
+	//input_data.clock_pointer += 1;//we found our resource to kick out, but still need to advance clock pointer. 
+
+	input_data.clock_table[input_data.clock_pointer][0] = 1;//change to in use because we are now mapping this to a new virtual resource
+	int physical_resource = input_data.clock_table[input_data.clock_pointer][1];//physical resource in our clock table stays the same
+	int virtual_resource_to_delete = input_data.clock_table[input_data.clock_pointer][2];//this is our old virtual resource that we are booting out. 
+	input_data.clock_table[input_data.clock_pointer][2] = virtual_page_to_replace;//change the virtual resource to point to our new one. 
+
+	//add in the physical resource here and change valid = 1
+	input_data.page_table[virtual_page_to_replace][0] = 1;
+	input_data.page_table[virtual_page_to_replace][2] = physical_resource;
+	input_data.page_table[virtual_page_to_replace][3] = 1;
+
+	//this stuff needs to be change valid = 0, its ppn to 0
+	input_data.page_table[virtual_resource_to_delete][0] = 0;
+	input_data.page_table[virtual_resource_to_delete][2] = 0;
+	input_data.page_table[virtual_resource_to_delete][3] = 0;
+	input_data.clock_pointer += 1;//we found our resource to kick out, but still need to advance clock pointer. 
+	if(input_data.clock_pointer > input_data.clock_table.size()){
+		input_data.clock_pointer = 0;
+	}
+
+	//find this ppn in page table invalidate (given by our locationinpt)
+	//now we found our page to kick. 
 }
