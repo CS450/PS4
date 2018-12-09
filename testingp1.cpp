@@ -1,28 +1,3 @@
-/*
- *Authors: Brandon Williams and Skyler Penna
- *File/Project: p1.cpp/CS 450 Problem Set 4 number 1 and 2 
- *Date: 12/09/2018
- *Description: This file takes in a file from command line 
- *	       that gives information for converting a 
- *	       virtual address to a physical. It then asks
- *	       the user to enter a virtual address and will
- *	       display the corresponding physical address. 
- *	       Page replacement is handled by the Clock
- *	       Algorithm. See following link for information
- *	       about the Clock Algorithm. 
- *	       http://www.cs.utexas.edu/users/witchel/372/lectures/16.PageReplacementAlgos.pdf
- *	       input file structure:
- *	       Number of bits in virtual address
- * 	       Number of bits in physical address
- * 	       Number of BYTES in a page
- *	       The lines of a flat page table for the current process, in the following format:
- *			Valid?
- *			Permission (1 bit)
- *			Physical page number
- *			Use bit (see Problem 2)
- * 
-*/
-
 #include <iostream>
 #include <vector>
 #include <string>
@@ -55,20 +30,25 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);									
 	}
 	input_file_data(argv[1]);
+	print_struct(input_data);//just testing to make sure my clock table was init
 	int virtual_address;
 	std::vector<int> physical_address;
 	int pages = input_data.page_table.size();
 	int pagenum = 0;
 
-	//string keepgoing = "c";
-	while(1){
-		cout << "Please enter a virtual address in hex, to exit press ctrl-c: \n";
-		cout << ">> ";
+	string keepgoing = "c";
+	while(keepgoing == "c" || keepgoing == "C"){
+		cout << "Please enter a virtual address in hex: ";
 		cin >> hex >> virtual_address;
+		//set cin back to dec?
 		cin >> dec;
 		//TODO: make sure this is a valid hex. 
-		
+		cout << "virtual_address = " << virtual_address << endl;
 		vector<int> vaddress = create_binary_vector(virtual_address, 0);
+
+		for(const auto i: vaddress){
+			cout << i;
+		}
 
 		cout << endl;
 
@@ -78,11 +58,15 @@ int main(int argc, char **argv){
 			}
 		}
 
+		cout << "pagenum = " << pagenum << endl;
+		cout << "log2(pages) = " << log2(pages) << endl;
+		//now we can lookup the ppn in the page table and create the physical address.
+
 		//check permission bit:
 		if(input_data.page_table[pagenum][1] == 0){
-			cout << "SEGFAULT\n";
+			cout << "SEGFAULT\n\n";
+			print_struct(input_data);//just testing to make sure my clock table was init
 		}
-
 		//at this point we know permission bit is 1, so now we check if valid = 0 and permission = 1
 		//if this is the case, print DISK for problem 1 or utilize the clock replacement alg. for
 		//problem 2
@@ -93,31 +77,46 @@ int main(int argc, char **argv){
 			cout << "PAGE FAULT\n";
 			clock_replacement(pagenum);
 			print_physical_address(pagenum, pages, vaddress);
+			
+			//cout << dec;
+			print_struct(input_data);//just testing to make sure my clock table was init
+
 			#endif
 		}
 		else{//valid and permission bits both set so we good to calculate physical address
 			print_physical_address(pagenum, pages, vaddress);
+			print_struct(input_data);//just testing to make sure my clock table was init
+
 		}
 
+
+		cout << "\n\n" << "type 'q' to exit or 'c' to enter another virtual address in hex: ";
+		cin >> keepgoing;
 		pagenum = 0;
-		cout << endl;
 	}
+
+	//just testing that file input was stored correctly here.
+	//print_struct(input_data);
 
 	return 0;
 }
 
-/*
- *Function Name: print_physical_address
- *Parameters: pagenum, which is the index from the virtual address into the page table. 
- *            pages, which is the total number of pages in the page table. 
- *            vaddress, a vector that represents the user inputted virtual address, stored
- *            as a vector of ints (which represent the binary version of the virtual address.  
- *Return Value: void
- *Description: This function is where we determine the physical address from a virtual address.  
-*/
 void print_physical_address(int pagenum, int pages, vector<int> vaddress){
 	vector<int> paddress = create_binary_vector(input_data.page_table[pagenum][2], 1);
 	
+	//if the vector is bigger than the log2(pages) we need to cut off some bits. 
+	
+	/*
+	while(paddress.size() > log2(pages)){
+		paddress.erase(paddress.begin());	
+	}
+	*/
+
+	cout << "physical address with just ppn: ";
+	for(const auto i: paddress){
+		cout << i;
+	}
+	cout << endl;
 	paddress.insert(paddress.end(), vaddress.begin()+ log2(pages),  vaddress.end());
 	
 	if(paddress.size() < input_data.address_info[1]){
@@ -126,24 +125,18 @@ void print_physical_address(int pagenum, int pages, vector<int> vaddress){
 			paddress.insert(paddress.begin(), 0);
 		}
 	}
-	cout << "Physical Address: ";
+	cout << "physical address with added offset in hex: ";
 
-	cout << hex << binaryVect_to_decimal(paddress) << endl;
+	cout << hex << binaryVect_to_decimal(paddress) << endl << "and now in binary: ";
 	//reset to dec
+	cout << dec;
+	for(const auto i: paddress){
+		cout << i;
+	}
+	cout << endl;
+
 }
 
-/*
- *Function Name: print_struct
- *Parameters: address_data which is a struct that holds information that was read in 
- *	      from an input file. Read top description of file to see how this input
- *	      file is structured.  
- *Return Value: void
- *Description: This function is was used for error testing and tracing through iterations
- * 	       of virtual address to physical address conversions. I simply prints out 
- * 	       the internal structure of the page table and our clock table, as well 
- * 	       as the initial information needed for converting virtual addresses to 
- * 	       physical.  
-*/
 void print_struct(address_data data){
 	cout << "Address info\n";
 	for(auto i = data.address_info.begin(); i != data.address_info.end();
@@ -172,13 +165,6 @@ void print_struct(address_data data){
 	}
 }
 
-/*
- *Function Name: input_file_data
- *Parameters: filename, which is the file entered in at the command line. 
- *Return Value: void
- *Description: This function reads in the data from the input file, and structures it
- * 	       into a struct.  
-*/
 void input_file_data(char * filename){
 	ifstream input;
 	string line;
@@ -225,15 +211,6 @@ void input_file_data(char * filename){
 	input.close();
 }
 
-/*
- *Function Name: create_binary_vector
- *Parameters: data, the decimal number that we are going to convert into binary
- *	      and store in a vector. 
- * 	      address_type, this is used to structure the way we build our vector
- *Return Value: vector of type int
- *Description: takes a decimal value, and stores the binary representation into a 
- * 	       vector of ints.  
-*/
 vector<int> create_binary_vector(int data, int address_type){
 	vector<int> v; 
 
@@ -257,13 +234,6 @@ vector<int> create_binary_vector(int data, int address_type){
 	return v;
 }
 
-/*
- *Function Name: binaryVect_to_decimal;
- *Parameters: v, which is a vector of ints that represent a binary number 
- *Return Value: integer
- *Description: This function converts an integer vector that is representing a
- *	       binary number into a decimal.  
-*/
 int binaryVect_to_decimal(vector<int> v){
 	int decimal_value;
 	for(int i = 0; i < v.size(); i++){
@@ -274,15 +244,12 @@ int binaryVect_to_decimal(vector<int> v){
 	return decimal_value;
 }
 
-/*
- *Function Name: clock_replacement;
- *Parameters: a page number which is the virtual page that is invalid,  
- *Return Value: void
- *Description: This function utilizes the Clock Algorithm to map a 
- *	       physical page number to initially invalid page in the page table. 
-*/
 void clock_replacement(int virtual_page_to_replace){
+	cout << "in clock replacement: \n replacing virtual page: " << virtual_page_to_replace << endl;
+	cout << "clock pointer is at: " << input_data.clock_pointer << endl;
+
 	while(input_data.clock_table[input_data.clock_pointer][0] == 1){
+		cout << "in page table while loop\n";
 		input_data.clock_table[input_data.clock_pointer][0] = 0;
 			
 		input_data.page_table[input_data.clock_table[input_data.clock_pointer][2]][3] = 0;
@@ -322,4 +289,8 @@ void clock_replacement(int virtual_page_to_replace){
 	if(input_data.clock_pointer > input_data.clock_table.size()){
 		input_data.clock_pointer = 0;
 	}
+	
+
+	//find this ppn in page table invalidate (given by our locationinpt)
+	//now we found our page to kick. 
 }
