@@ -30,25 +30,20 @@ int main(int argc, char **argv){
 		exit(EXIT_FAILURE);									
 	}
 	input_file_data(argv[1]);
-	print_struct(input_data);//just testing to make sure my clock table was init
 	int virtual_address;
 	std::vector<int> physical_address;
 	int pages = input_data.page_table.size();
 	int pagenum = 0;
 
-	string keepgoing = "c";
-	while(keepgoing == "c" || keepgoing == "C"){
-		cout << "Please enter a virtual address in hex: ";
+	//string keepgoing = "c";
+	while(1){
+		cout << "Please enter a virtual address in hex, to exit press ctrl-c: \n";
+		cout << ">> ";
 		cin >> hex >> virtual_address;
-		//set cin back to dec?
 		cin >> dec;
 		//TODO: make sure this is a valid hex. 
-		cout << "virtual_address = " << virtual_address << endl;
+		
 		vector<int> vaddress = create_binary_vector(virtual_address, 0);
-
-		for(const auto i: vaddress){
-			cout << i;
-		}
 
 		cout << endl;
 
@@ -58,15 +53,11 @@ int main(int argc, char **argv){
 			}
 		}
 
-		cout << "pagenum = " << pagenum << endl;
-		cout << "log2(pages) = " << log2(pages) << endl;
-		//now we can lookup the ppn in the page table and create the physical address.
-
 		//check permission bit:
 		if(input_data.page_table[pagenum][1] == 0){
-			cout << "SEGFAULT\n\n";
-			print_struct(input_data);//just testing to make sure my clock table was init
+			cout << "SEGFAULT\n";
 		}
+
 		//at this point we know permission bit is 1, so now we check if valid = 0 and permission = 1
 		//if this is the case, print DISK for problem 1 or utilize the clock replacement alg. for
 		//problem 2
@@ -77,26 +68,15 @@ int main(int argc, char **argv){
 			cout << "PAGE FAULT\n";
 			clock_replacement(pagenum);
 			print_physical_address(pagenum, pages, vaddress);
-			
-			//cout << dec;
-			print_struct(input_data);//just testing to make sure my clock table was init
-
 			#endif
 		}
 		else{//valid and permission bits both set so we good to calculate physical address
 			print_physical_address(pagenum, pages, vaddress);
-			print_struct(input_data);//just testing to make sure my clock table was init
-
 		}
 
-
-		cout << "\n\n" << "type 'q' to exit or 'c' to enter another virtual address in hex: ";
-		cin >> keepgoing;
 		pagenum = 0;
+		cout << endl;
 	}
-
-	//just testing that file input was stored correctly here.
-	//print_struct(input_data);
 
 	return 0;
 }
@@ -104,19 +84,6 @@ int main(int argc, char **argv){
 void print_physical_address(int pagenum, int pages, vector<int> vaddress){
 	vector<int> paddress = create_binary_vector(input_data.page_table[pagenum][2], 1);
 	
-	//if the vector is bigger than the log2(pages) we need to cut off some bits. 
-	
-	/*
-	while(paddress.size() > log2(pages)){
-		paddress.erase(paddress.begin());	
-	}
-	*/
-
-	cout << "physical address with just ppn: ";
-	for(const auto i: paddress){
-		cout << i;
-	}
-	cout << endl;
 	paddress.insert(paddress.end(), vaddress.begin()+ log2(pages),  vaddress.end());
 	
 	if(paddress.size() < input_data.address_info[1]){
@@ -125,16 +92,10 @@ void print_physical_address(int pagenum, int pages, vector<int> vaddress){
 			paddress.insert(paddress.begin(), 0);
 		}
 	}
-	cout << "physical address with added offset in hex: ";
+	cout << "Physical Address: ";
 
-	cout << hex << binaryVect_to_decimal(paddress) << endl << "and now in binary: ";
+	cout << hex << binaryVect_to_decimal(paddress) << endl;
 	//reset to dec
-	cout << dec;
-	for(const auto i: paddress){
-		cout << i;
-	}
-	cout << endl;
-
 }
 
 void print_struct(address_data data){
@@ -245,11 +206,7 @@ int binaryVect_to_decimal(vector<int> v){
 }
 
 void clock_replacement(int virtual_page_to_replace){
-	cout << "in clock replacement: \n replacing virtual page: " << virtual_page_to_replace << endl;
-	cout << "clock pointer is at: " << input_data.clock_pointer << endl;
-
 	while(input_data.clock_table[input_data.clock_pointer][0] == 1){
-		cout << "in page table while loop\n";
 		input_data.clock_table[input_data.clock_pointer][0] = 0;
 			
 		input_data.page_table[input_data.clock_table[input_data.clock_pointer][2]][3] = 0;
@@ -289,8 +246,4 @@ void clock_replacement(int virtual_page_to_replace){
 	if(input_data.clock_pointer > input_data.clock_table.size()){
 		input_data.clock_pointer = 0;
 	}
-	
-
-	//find this ppn in page table invalidate (given by our locationinpt)
-	//now we found our page to kick. 
 }
