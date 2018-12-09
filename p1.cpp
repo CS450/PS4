@@ -34,12 +34,14 @@ int main(int argc, char **argv){
 	int virtual_address;
 	std::vector<int> physical_address;
 	int pages = input_data.page_table.size();
-	int pagenum;
+	int pagenum = 0;
 
 	string keepgoing = "c";
 	while(keepgoing == "c" || keepgoing == "C"){
 		cout << "Please enter a virtual address in hex: ";
 		cin >> hex >> virtual_address;
+		//set cin back to dec?
+		cin >> dec;
 		//TODO: make sure this is a valid hex. 
 		cout << "virtual_address = " << virtual_address << endl;
 		vector<int> vaddress = create_binary_vector(virtual_address, 0);
@@ -49,6 +51,7 @@ int main(int argc, char **argv){
 		}
 
 		cout << endl;
+
 		for(int i = 0; i < log2(pages); i++){
 			if(vaddress[log2(pages)-(i+1)] == 1){
 				pagenum += exp2(i);
@@ -62,6 +65,7 @@ int main(int argc, char **argv){
 		//check permission bit:
 		if(input_data.page_table[pagenum][1] == 0){
 			cout << "SEGFAULT\n\n";
+			print_struct(input_data);//just testing to make sure my clock table was init
 		}
 		//at this point we know permission bit is 1, so now we check if valid = 0 and permission = 1
 		//if this is the case, print DISK for problem 1 or utilize the clock replacement alg. for
@@ -73,12 +77,15 @@ int main(int argc, char **argv){
 			cout << "PAGE FAULT\n";
 			clock_replacement(pagenum);
 			print_physical_address(pagenum, pages, vaddress);
+			
+			//cout << dec;
 			print_struct(input_data);//just testing to make sure my clock table was init
 
 			#endif
 		}
 		else{//valid and permission bits both set so we good to calculate physical address
 			print_physical_address(pagenum, pages, vaddress);
+			print_struct(input_data);//just testing to make sure my clock table was init
 
 		}
 
@@ -96,12 +103,22 @@ int main(int argc, char **argv){
 
 void print_physical_address(int pagenum, int pages, vector<int> vaddress){
 	vector<int> paddress = create_binary_vector(input_data.page_table[pagenum][2], 1);
+	
+	//if the vector is bigger than the log2(pages) we need to cut off some bits. 
+	
+	/*
+	while(paddress.size() > log2(pages)){
+		paddress.erase(paddress.begin());	
+	}
+	*/
+
 	cout << "physical address with just ppn: ";
 	for(const auto i: paddress){
 		cout << i;
 	}
 	cout << endl;
 	paddress.insert(paddress.end(), vaddress.begin()+ log2(pages),  vaddress.end());
+	
 	if(paddress.size() < input_data.address_info[1]){
 		int smallpaddress = paddress.size();
 		for(int i = 0; i < (input_data.address_info[1]-smallpaddress); i++){
@@ -111,10 +128,12 @@ void print_physical_address(int pagenum, int pages, vector<int> vaddress){
 	cout << "physical address with added offset in hex: ";
 
 	cout << hex << binaryVect_to_decimal(paddress) << endl << "and now in binary: ";
-
+	//reset to dec
+	cout << dec;
 	for(const auto i: paddress){
 		cout << i;
 	}
+	cout << endl;
 
 }
 
@@ -176,7 +195,8 @@ void input_file_data(char * filename){
 
 
 		for(int i = 0; i < input_data.page_table.size(); i++){
-			if(input_data.page_table[i][2] > 0){//ppn exists here so throw it in the clock table with the current i
+			if(input_data.page_table[i][2] > 0 && input_data.page_table[i][0] == 1){
+				//ppn exists and is validhere so throw it in the clock table with the current i
 				vector<int> page_data;
 				page_data.push_back(input_data.page_table[i][3]);
 				page_data.push_back(input_data.page_table[i][2]);
@@ -225,21 +245,29 @@ int binaryVect_to_decimal(vector<int> v){
 }
 
 void clock_replacement(int virtual_page_to_replace){
+	cout << "in clock replacement: \n replacing virtual page: " << virtual_page_to_replace << endl;
+	cout << "clock pointer is at: " << input_data.clock_pointer << endl;
 
-	while(input_data.clock_table[input_data.clock_pointer][3] == 1){
-
-		input_data.page_table[input_data.clock_pointer][3] == 0;
+	while(input_data.clock_table[input_data.clock_pointer][0] == 1){
+		cout << "in page table while loop\n";
+		input_data.clock_table[input_data.clock_pointer][0] = 0;
+			
+		input_data.page_table[input_data.clock_table[input_data.clock_pointer][2]][3] = 0;
+		
 		input_data.clock_pointer++;
 
-		if(input_data.clock_pointer > input_data.clock_table.size()){
+		if(input_data.clock_pointer >= input_data.clock_table.size()){
 			input_data.clock_pointer = 0;
 		}
 	}						
-	//input_data.clock_pointer += 1;//we found our resource to kick out, but still need to advance clock pointer. 
 
 	input_data.clock_table[input_data.clock_pointer][0] = 1;//change to in use because we are now mapping this to a new virtual resource
+	input_data.page_table[input_data.clock_table[input_data.clock_pointer][2]][3] = 1;//change page tables use bit
+												
 	int physical_resource = input_data.clock_table[input_data.clock_pointer][1];//physical resource in our clock table stays the same
+	
 	int virtual_resource_to_delete = input_data.clock_table[input_data.clock_pointer][2];//this is our old virtual resource that we are booting out. 
+	
 	input_data.clock_table[input_data.clock_pointer][2] = virtual_page_to_replace;//change the virtual resource to point to our new one. 
 
 	//add in the physical resource here and change valid = 1
@@ -247,14 +275,21 @@ void clock_replacement(int virtual_page_to_replace){
 	input_data.page_table[virtual_page_to_replace][2] = physical_resource;
 	input_data.page_table[virtual_page_to_replace][3] = 1;
 
-	//this stuff needs to be change valid = 0, its ppn to 0
-	input_data.page_table[virtual_resource_to_delete][0] = 0;
-	input_data.page_table[virtual_resource_to_delete][2] = 0;
-	input_data.page_table[virtual_resource_to_delete][3] = 0;
+	//we dont want to delete what we just newly mapped! so this is
+	//used as a error check. 
+	if(virtual_resource_to_delete != virtual_page_to_replace){
+		//this stuff needs to be change valid = 0, its ppn to 0
+		input_data.page_table[virtual_resource_to_delete][0] = 0;
+		input_data.page_table[virtual_resource_to_delete][2] = 0;
+		input_data.page_table[virtual_resource_to_delete][3] = 0;
+	}
+	
+	
 	input_data.clock_pointer += 1;//we found our resource to kick out, but still need to advance clock pointer. 
 	if(input_data.clock_pointer > input_data.clock_table.size()){
 		input_data.clock_pointer = 0;
 	}
+	
 
 	//find this ppn in page table invalidate (given by our locationinpt)
 	//now we found our page to kick. 
