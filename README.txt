@@ -25,6 +25,7 @@ The corresponding physical addresses in hex.
 When pages are not in physical memory but have a permission bit set to 1, print DISK.
 If the permission bit is 0, print SEGFAULT.
 
+ 
 Problem 2: Page replacement [30 points]
 Extend the program from Problem 1 to implement a clock replacement algorithm (see these notes for background: http://www.cs.utexas.edu/users/witchel/372/lectures/16.PageReplacementAlgos.pdf). Let the clock hand initially pointed at virtual page 0. This means that when the user enters an address that is currently mapped to disk, you should use the clock replacement algorithm to choose which virtual page to kick out of memory (and thus, which physical page to use). Use local replacement. That is, you should kick out a page from the current process that is currently mapped to physical memory.
 
@@ -42,7 +43,8 @@ cout << "PAGE FAULT" << endl;
 cout << new_PA << endl;
 #endif
 Then you would compile p2.x normally, and you would put "-D PROB1" on the g++ command line to compile p1.x.
-
+ 
+ 
 Problem 3: Filesystem operations [20 points]
 Write a C program that does the following, in order:
 Opens the file named as the command-line argument for reading
@@ -51,6 +53,8 @@ Forks a child process that calls unlink() to delete the file
 Waits on the child process
 Tries to read the now-deleted file
 In an initial comment, explain what happens when you run your program, and why.
+
+
 Problem 4: Filesystem operations [20 points]
 Do the following worksheet:
 https://docs.google.com/document/d/1OeDaPjfYRiUOej0_gYkk83VMDlLQCq8eF74IO6JN0Vo/edit?usp=sharing
